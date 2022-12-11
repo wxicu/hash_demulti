@@ -1,44 +1,59 @@
-process PREPROCESS{
-    publishDir params.outdir/preprocess, mode:'copy'
-    label "seurat_process"
+process preprocess{
+    publishDir "$params.outdir/preprocess", mode:'copy'
     input:
-        val rdsObject
-        val umi_counts
-        val hto_matrix
-        val ndelim
-        val selection_method
-        val number_features
-        val assay
-        val margin
-        val normalisation_method
-        val preprocess_out
+        each rdsObject
+        each umi_counts
+        each hto_matrix
+        each ndelim
+        each selection_method
+        each number_features
+        each assay
+        each margin
+        each normalisation_method
+        each preprocess_out
     output:
-        file '*.rds'
+        path "preprocess_${task.index}"
 
     script:
+        def rds = rdsObject != "FALSE" ? "--rdsObject" : ""
     """
-        Rscript pre_processing.R  --rdsObject $rdsObject --fileUmi $umi_counts --fileHto $hto_matrix --ndelim $ndelim \
+        mkdir preprocess_${task.index}
+        pre_processing.R $rds --fileUmi $umi_counts --fileHto $hto_matrix --ndelim $ndelim \
                                   --selectMethod $selection_method --numberFeatures $number_features --assay $assay \
-                                  --margin $margin --normalisationMethod $normalisation_method --OutputFile $preprocess_out
+                                  --margin $margin --normalisationMethod $normalisation_method --OutputFile $preprocess_out \
+                                  --outputdir preprocess_${task.index}
     """
 
 
 }
 
 
-workflow preprocessing{
-    main:
-        rdsObject = Channel.from(params.rdsObject)
-        umi_matrix = Channel.fromPath(params.umi_count)
-        hto_matrix =  Channel.fromPath(params.hto_mat)
-        sel_method = Channel.from(params.selection_method)
-        ndelim = Channel.from(params.ndelim)
-        n_features = Channel.from(params.number_features)
-        assay = Channel.from(params.assay)
-        margin = Channel.from(params.margin)
-        norm_method = Channel.from(params.normalisation_method)
-        out_file = Channel.from(params.preprocessOut)
-        PREPROCESS(rdsObject, umi_matrix, hto_matrix, ndelim, sel_method, n_features, assay, margin, norm_method, out_file)
+def split_input(input){
+    if (input =~ /;/ ){
+        Channel.from(input).map{ return it.tokenize(';')}.flatten()
+    }
+    else{
+        Channel.from(input)
+    }
+}
 
+workflow preprocessing_hashing{
+    main:
+        rdsObject = split_input(params.rdsObject)
+        umi_matrix = split_input(params.umi_matrix_preprocess)
+        hto_matrix =  split_input(params.hto_matrix_preprocess)
+        sel_method = split_input(params.sel_method)
+        ndelim = split_input(params.ndelim)
+        n_features = split_input(params.n_features)
+        assay = split_input(params.assay)
+        margin = split_input(params.margin)
+        norm_method = split_input(params.norm_method)
+        out_file = split_input(params.preprocessOut)
+        preprocess(rdsObject, umi_matrix, hto_matrix, ndelim, sel_method, n_features, assay, margin, norm_method, out_file)
+    emit:
+        preprocess.out.collect()
 }
   
+workflow{
+    preprocessing_hashing()
+}

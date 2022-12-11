@@ -1,98 +1,110 @@
+#!/usr/bin/env nextflow
 nextflow.enable.dsl=2
-process HTODEMUX{
+
+process htodemux{
     publishDir "$params.outdir/htodemux", mode: 'copy'
-    label "seurat_process"
     input:
-        path seurat_object
-        val quantile_hto
-        val kfunc
-        val nstarts
-        val nsamples
-        val seed
-        val init
-        val assignmentOutHTO
-        val objectOutHTO
-
+        each seurat_object
+        each assay
+        each quantile
+        each kfunc
+        each nstarts
+        each nsamples
+        each seed
+        each init
+        each objectOutHTO
+        each assignmentOutHTO
+        
+        //Ridge plot params
+        each ridgePlot
+        each ridgeNCol
+        //Scatter features params
+        each featureScatter
+        each scatterFeat1
+        each scatterFeat2
+        //Violin plot params
+        each vlnplot
+        each vlnFeatures
+        each vlnLog
+        //tSNE
+        each tsne
+        each tsneIdents
+        each tsneInvert
+        each tsneVerbose
+        each tsneApprox
+        each tsneDimMax
+        each tsnePerplexity
+        //Heatmap
+        each heatmap
+        each heatmapNcells
+        
     output:
-        path '*.rds'
-        path '*_classification_htodemux.csv'
-        path '*_assignment_htodemux.csv'
-
+        path "htodemux_${task.index}"
+        
     script:
-
+        def init_val = init != 'NULL' ? " --init $init" : ''
+        def vln_log = vlnLog != 'FALSE' ?  "--vlnLog" : ''
+        def invert = tsneInvert != 'FALSE' ?  "--tSNEInvert" : ''
+        def verbose = tsneVerbose != 'FALSE' ?  "--tSNEVerbose" : ''
+        def approx = tsneApprox != 'FALSE' ?  "--tSNEApprox" : ''
+        
         """
-            Rscript HTODemux.R --seuratObjectPath $seurat_object --quantile $quantile_hto --kfunc $kfunc --nstarts $nstarts --nsamples $nsamples --seed $seed --init $init --assignmentOutHTO $assignmentOutHTO --objectOutHTO $objectOutHTO
+        mkdir htodemux_${task.index}
+        HTODemux.R --seuratObject $seurat_object --assay $assay --quantile $quantile --kfunc $kfunc --nstarts $nstarts --nsamples $nsamples --seed $seed $init_val --objectOutHTO $objectOutHTO --assignmentOutHTO $assignmentOutHTO --outputdir htodemux_${task.index}
+        HTODemux-visualisation.R --hashtagPath htodemux_${task.index}/${objectOutHTO}.rds --assay $assay --ridgePlot $ridgePlot --ridgeNCol $ridgeNCol --featureScatter $featureScatter --scatterFeat1 $scatterFeat1 --scatterFeat2 $scatterFeat2 --vlnPlot $vlnplot --vlnFeatures $vlnFeatures $vln_log --tSNE $tsne --tSNEIdents $tsneIdents $invert $verbose $approx --tSNEDimMax $tsneDimMax --tSNEPerplexity $tsnePerplexity --heatMap $heatmap --heatMapNcells $heatmapNcells --outputdir htodemux_${task.index}
         """
-
 
 }
 
-process HTO_VISUALISATION{
-
-    publishDir path: "$projectDir/htodemux", mode:'copy'
-    label "seurat_process"
-    
-    input:
-    path result_object
-    val assay
-    //Ridge plot params
-    val ridgePlot
-    val ridgeNCol
-    //Scatter features params
-    val featureScatter
-    val scatterFeat1
-    val scatterFeat2
-    //Violin plot params
-    val vlnplot
-    val vlnFeatures
-    val vlnLog
-    //tSNE
-    val tsne
-    val tseIdents
-    val tsneInvert
-    val tsneVerbose
-    val tsneApprox
-    val tsneDimMax
-    val tsePerplexity
-    //Heatmap
-    val heatmap
-    val heatmapNcells
-
-    output:
-    file '*.png'
-
-    script:
-    """
-        Rscript HTODemux-visualisation.R --HashtagPath $result_object --assay $assay --ridgePlot $ridgePlot --ridgeNCol $ridgeNCol --featureScatter $featureScatter --scatterFeat1 $scatterFeat1 --scatterFeat2 $scatterFeat2 --vlnplot $vlnplot --vlnFeatures $vlnFeatures --vlnLog $vlnLog --tsne $tsne --tseIdents $tseIdents --tsneInvert $tsneInvert --tsneVerbose $tsneVerbose --tsneApprox $tsneApprox --tsneDimMax $tsneDimMax --tsePerplexity $tsePerplexity --heatmap $heatmap --heatmapNcells $heatmapNcells
-    """
-
-
+def split_input(input){
+    if (input =~ /;/ ){
+        Channel.from(input).map{ return it.tokenize(';')}.flatten()
+    }
+    else{
+        Channel.from(input)
+    }
 }
 
 
-workflow HTODemux_hashing{
+workflow htodemux_hashing{
     take:
-	seurat_object
-    main:
         seurat_object
-        quantile_hto = Channel.from(params.quantile_hto)
-  	kfunc = Channel.from(params.kfunc)
-  	n_starts = Channel.from(params.nstarts)
-  	n_samples = Channel.from(params.nsamples)
-  	seed = Channel.from(params.seed)
-  	init = Channel.from(params.init)
-  	object_hto = Channel.from(params.objectOutHTO)
-  	assignment_hto = Channel.from(params.assignmentOutHTO)
+    main:
+        quantile = split_input(params.quantile_htodemux)
+        assay = split_input(params.assay)
+        kfunc = split_input(params.kfunc)
+        nstarts = split_input(params.nstarts)
+        nsamples = split_input(params.nsamples)
+        seed = split_input(params.seed)
+        init = split_input(params.init)
+        objectOutHTO = split_input(params.objectOutHTO)
+        assignmentOutHTO = split_input(params.assignmentOutHTO)
+        
+        ridgePlot = split_input(params.ridgePlot)
+        ridgeNCol = split_input(params.ridgeNCol)
+        featureScatter = split_input(params.featureScatter)
+        scatterFeat1 = split_input(params.scatterFeat1)
+        scatterFeat2 = split_input(params.scatterFeat2)
+        vlnplot = split_input(params.vlnplot)
+        vlnFeatures = split_input(params.vlnFeatures)
+        vlnLog = split_input(params.vlnLog)
+        
+        tsne = split_input(params.tsne)
+        tsneIdents = split_input(params.tsneIdents)
+        tsneInvert = split_input(params.tsneInvert)
+        tsneVerbose = split_input(params.tsneVerbose)
+        tsneApprox = split_input(params.tsneApprox)
+        tsneDimMax = split_input(params.tsneDimMax)
+        tsnePerplexity = split_input(params.tsnePerplexity)
+        heatmap = split_input(params.heatmap)
+        heatmapNcells = split_input(params.heatmapNcells)
 
+        htodemux(seurat_object, assay, quantile, kfunc, nstarts, nsamples, seed, init, objectOutHTO, assignmentOutHTO, ridgePlot, ridgeNCol, featureScatter, scatterFeat1, scatterFeat2, vlnplot, vlnFeatures, vlnLog, tsne, tsneIdents, tsneInvert, tsneVerbose, tsneApprox, tsneDimMax, tsnePerplexity, heatmap, heatmapNcells)
 
-
-        HTODEMUX(seurat_object, quantile_hto, kfunc, nstarts, nsamples, seed, init, assignmentOutHTO, objectOutHTO)
-        if visualize_HTODEMUX == TRUE{
-           HTO_VISUALISATION(HTODEMUX.out[0])
-           
-}
     emit:
-        HTODEMUX.out
+        htodemux.out.collect()
+}
 
-
+workflow{
+    htodemux_hashing()
 }

@@ -1,49 +1,63 @@
-process MULTI_SEQ{
-    publishDir params.outdir/multiseq, mode:'copy'
+#!/usr/bin/env nextflow
+nextflow.enable.dsl=2
+
+process multi_seq{
+    publishDir "$params.outdir/multiseq", mode:'copy'
     
     input:
-    val rdsObject
-    val quantile_multi
-    val autoThresh
-    val maxiter
-    val qrangeFrom
-    val qrangeTo
-    val qrangeBy
-    val verbose
-    val assay
-    val objectOutMulti
-    val assignmentOutMulti
-
+    each rdsObject
+    each quantile
+    each autoThresh
+    each maxiter
+    each qrangeFrom
+    each qrangeTo
+    each qrangeBy
+    each verbose
+    each assay
+    each objectOutMulti
+    each assignmentOutMulti
 
     output:
-        path '*.rds'
-        path '*_assignment_multiseq_demux.csv'
+        path "multiseq_${task.index}"
 
     script:
-    """
-    
-    Rscript MultiSeq.R --rdsObject $rdsObject --assay $assay --quantile_multi $quantile_multi --autoThresh $autoThresh --maxiter $maxiter --qrangeFrom $qrangeFrom --qrangeTo $qrangeTo --qrangeBy $qrangeBy --verbose $verbose  --objectOutMulti $objectOutMulti --assignmentOutMulti $assignmentOutMulti
-    """
+        def autoThr = autoThresh != 'FALSE' ? " --autoThresh" : ''
+        def verb = verbose != 'FALSE' ? " --verbose" : ''
+                
+        """
+        mkdir multiseq_${task.index}
+        MultiSeq.R --seuratObjectPath $rdsObject  --assay $assay --quantile $quantile $autoThr --maxiter $maxiter --qrangeFrom $qrangeFrom --qrangeTo $qrangeTo --qrangeBy $qrangeBy $verb --objectOutMulti $objectOutMulti --assignmentOutMulti $assignmentOutMulti --outputdir multiseq_${task.index}
+        """
 }
 
-
+def split_input(input){
+    if (input =~ /;/ ){
+        Channel.from(input).map{ return it.tokenize(';')}.flatten()
+    }
+    else{
+        Channel.from(input)
+    }
+}
 
 workflow multiseq_hashing{
+   take:
+        rdsObject
    main:
-        rdsObject =  Channel.fromPath(params.rds_object)
-  	quantile_multi = Channel.from(params.quantile_multi)
-  	autoThresh = Channel.from(params.autoThresh)
-  	maxIter = Channel.from(params.maxiter)
-  	qrangeFrom = Channel.from(params.qrangeFrom)
-  	qrangeTo = Channel.from(params.qrangeTo)
-  	qrangeBy = Channel.from(params.qrangeBy)
-  	verbose = Channel.from(params.verbose)
-	assay = Channel.from(params.assay)
-  	out_multi = Channel.from(params.objectOutMulti)
-  	assignment_multi = Channel.from(params.assignmentOutMulti)
-        MULTI_SEQ(rdsObject, quantile_multi, autoThresh, maxIter, qrangeFrom, qrangeTo, qrangeBy, verbose, assay, out_multi, assignment_mutli)
+        quantile = split_input(params.quantile_multi)
+        autoThresh = split_input(params.autoThresh)
+        maxIter = split_input(params.maxiter)
+        qrangeFrom = split_input(params.qrangeFrom)
+        qrangeTo = split_input(params.qrangeTo)
+        qrangeBy = split_input(params.qrangeBy)
+        verbose = split_input(params.verbose)
+        assay = split_input(params.assay)
+        objectOutMulti = split_input(params.objectOutMulti)
+        assignmentOutMulti = split_input(params.assignmentOutMulti)
+        multi_seq(rdsObject, quantile, autoThresh, maxIter, qrangeFrom, qrangeTo, qrangeBy, verbose, assay, objectOutMulti, assignmentOutMulti)
    emit:
-	MULTI_SEQ.out
+        multi_seq.out.collect()
+}
 
-
-} 
+workflow{
+     multiseq_hashing()
+}

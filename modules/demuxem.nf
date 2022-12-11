@@ -1,66 +1,67 @@
-process DEMUXEM{
-    publishDir params.outdir/demuxem, mode:'copy'
-    label "demuxem"
+#!/usr/bin/env nextflow
+nextflow.enable.dsl=2
+
+process demuxem{
+    publishDir "$params.outdir/demuxem", mode:'copy'
     input:
-        path rna_raw 
-        path hto_mat_folder
-	val gz
-	val n_threads
-	val genome
-        val alpha
-        val min_num_genes
-        val min_num_umis
-        val min_signal_hashtag
-        val random_state
-	val generate_diagnostic_plots
-	val generate_gender_plot 
-        val output_demux
+        each raw_rna_matrix_dir
+        each hto_matrix_dir
+        each threads
+        each alpha
+        each alpha_noise
+        each tol
+        each min_num_genes
+        each min_num_umis
+        each min_signal
+        each random_state
+        each generate_gender_plot
+        each objectOutDemuxem
     output:
-	path 'matrix_filtered.csv'
-        path '*_demux.zarr'
-	path '*.out.demuxEM.zarr'
-	path '*.ambient_hashtag.hist.pdf'
-	path '*.background_probabilities.bar.pdf'
-	path '*.real_content.hist.pdf'
-	path '*.rna_demux.hist.pdf'
-	path '*.gene_name.violin.pdf'
+        path "demuxem_${task.index}"
         
     script:
-	def generateDiagnosticPlots =  generate_diagnostic_plots == 'True' ? " -generate-diagnostic-plots" : ' '
-	def generateGenderPlot =  generate_gender_plot != 'False' ? " -generate-gender-plot ${generate_gender_plot}" : ' '
+        def generateGenderPlot = generate_gender_plot != 'None' ? " --generateGenderPlot ${generate_gender_plot}" : ''
         """
-        python mat2csv.py --hto_mat_folder $hto_mat_folder --gz $gz
-	demuxEM -p ${n_threads} -alpha-on-samples ${alpha} -min-num-genes ${min_num_genes} -min-num-umis ${min_num_umis} \
-		-min-signal-hashtag ${min_signal_hashtag} -random-state ${random_state} ${generateDiagnosticPlots} \
-		${generateGenderPlot} ${rna_raw} matrix_filtered.csv ${output_demux}
-
+        mkdir demuxem_${task.index}
+        demuxem.py --rna_matrix_dir $raw_rna_matrix_dir --hto_matrix_dir $hto_matrix_dir --randomState $random_state --min_signal $min_signal --min_num_genes $min_num_genes --min_num_umis $min_num_umis --alpha $alpha --alpha_noise $alpha_noise --tol $tol --n_threads $threads $generateGenderPlot --objectOutDemuxem $objectOutDemuxem --outputdir demuxem_${task.index}
+        
         """
 
 }
 
-
-
+def split_input(input){
+    if (input =~ /;/ ){
+        Channel.from(input).map{ return it.tokenize(';')}.flatten()
+    }
+    else{
+        Channel.from(input)
+    }
+}
 
 workflow demuxem_hashing{
   main:
-	rna_raw = Channel.fromPath(params.rna_raw)
-        hto_mat_folder = Channel.fromPath(params.hto)
-  	gz = Channel.from(params.gz)
-        n_threads = Channel.from(params.n_threads)
-	genome = Channel.from(params.genome)
-	alpha = Channel.from(params.alpha)
-        min_num_genes = Channel.from(params.min_num_genes)
-        min_num_umis = Channel.from(params.min_num_umis)
-        min_signal_hashtag = Channel.from(params.min_signal_hashtag)
-        random_state = Channel.from(params.random_state)
-        generate_diagnostic_plots = Channel.from(params.generate_diagnostic_plots)
-        generate_gender_plot = Channel.from(params.generate_gender_plot)
-        output_demux = Channel.from(params.output_demux)
+        raw_rna_matrix_dir = split_input(params.rna_matrix_demuxem)
+        hto_matrix_dir = split_input(params.hto_matrix_demuxem)
+        threads = split_input(params.threads)
+        alpha = split_input(params.alpha)
+        alpha_noise = split_input(params.alpha_noise)
+        min_num_genes = split_input(params.min_num_genes)
+        min_num_umis = split_input(params.min_num_umis)
+        min_signal = split_input(params.min_signal)
+        tol = split_input(params.tol)
+        random_state = split_input(params.random_state)
+        generate_gender_plot = split_input(params.generate_gender_plot)
+        objectOutDemuxem = split_input(params.objectOutDemuxem)
 
-	DEMUXEM(rna_raw, hto_mat_folder, gz, n_threads, genome, alpha, min_num_genes, min_num_umis, min_signal_hashtag, random_state, generate_diagnostic_plots, generate_gender_plot, output_demux)
+        demuxem(raw_rna_matrix_dir, hto_matrix_dir, threads, alpha, alpha_noise, tol, min_num_genes, min_num_umis, min_signal, random_state, generate_gender_plot, objectOutDemuxem)
   
   emit:
-	DEMUXEM.out
+        demuxem.out.collect()
+}
+
+
+workflow{
+    demuxem_hashing()
 
 
 }
