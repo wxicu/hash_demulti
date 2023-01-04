@@ -1,8 +1,9 @@
 process preprocess{
     publishDir "$params.outdir/preprocess", mode:'copy'
+    label 'seurat'
     input:
         each rdsObject
-        each umi_counts
+        each umi_matrix
         each hto_matrix
         each ndelim
         each selection_method
@@ -18,7 +19,7 @@ process preprocess{
         def rds = rdsObject != "FALSE" ? "--rdsObject" : ""
     """
         mkdir preprocess_${task.index}
-        pre_processing.R $rds --fileUmi $umi_counts --fileHto $hto_matrix --ndelim $ndelim \
+        pre_processing.R $rds --fileUmi $umi_matrix --fileHto $hto_matrix --ndelim $ndelim \
                                   --selectMethod $selection_method --numberFeatures $number_features --assay $assay \
                                   --margin $margin --normalisationMethod $normalisation_method --OutputFile $preprocess_out \
                                   --outputdir preprocess_${task.index}

@@ -144,36 +144,61 @@ htodemux_summary <- function(htodemux_res){
   write.csv(params, "htodemux_params.csv", row.names=FALSE)
 }
 
+solo_summary <- function(solo_res){
+  classi <- lapply(solo_res, function(x){
+    obs_res_dir <- list.files(x, pattern = "_res.csv", full.names = TRUE)[1]
+    solo_classi <- fread(obs_res_dir, header = TRUE)
+    colnames(solo_classi) = c("Barcode", basename(x))
+    solo_classi$Barcode <- gsub("-0", "", solo_classi$Barcode)
+    solo_classi
+  }) %>% Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2,by="Barcode"), .)
+  write.csv(classi, "solo_classification.csv", row.names=FALSE)
+  
+  params <- lapply(solo_res, function(x){
+    params_dir <- list.files(x, pattern = "params.csv", full.names = TRUE)[1]
+    params_res <- fread(params_dir, header = TRUE)
+    colnames(params_res)[2] <- basename(x)
+    params_res
+  }) %>% Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2,by="Argument"), .)
+  write.csv(params, "solo_params.csv", row.names=FALSE)
+}
+
 
 if (!is.null(args$hashedDrops)){
   hashedDrops_res <- substring(args$hashedDrops, 1, nchar(args$hashedDrops)-1)
   hashedDrops_res <- str_split(hashedDrops_res, pattern=':')[[1]]
   hasheddrops_summary(hashedDrops_res)
-  print("hd")
+  print("hashedDrops result found")
 }
 if (!is.null(args$demuxem)){
-  demuxem_res <- substring(args$demuxems, 1, nchar(args$demuxem)-1)
+  demuxem_res <- substring(args$demuxem, 1, nchar(args$demuxem)-1)
   demuxem_res <- str_split(demuxem_res, pattern=':')[[1]]
   demuxem_summary(demuxem_res)
-  print("de")
+  print("DemuxEM result found")
 }
 if (!is.null(args$hashsolo)){
   hashsolo_res <- substring(args$hashsolo, 1, nchar(args$hashsolo)-1)
   hashsolo_res <- str_split(hashsolo_res, pattern=':')[[1]]
   hashsolo_summary(hashsolo_res)
-  print("hs")
+  print("HashSolo result found")
 }
 if (!is.null(args$multiseq)){
   multiseq_res <- substring(args$multiseq, 1, nchar(args$multiseq)-1)
   multiseq_res <- str_split(multiseq_res, pattern=':')[[1]]
   multiseq_summary(multiseq_res)
-  print("m")
+  print("MultiSeqDemux result found")
 }
 if (!is.null(args$htodemux)){
   htodemux_res <- substring(args$htodemux, 1, nchar(args$htodemux)-1)
   htodemux_res <- str_split(htodemux_res, pattern=':')[[1]]
   htodemux_summary(htodemux_res)
-  print("hto")
+  print("HTODemux result found")
+}
+if (!is.null(args$solo)){
+  solo_res <- substring(args$solo, 1, nchar(args$solo)-1)
+  solo_res <- str_split(solo_res, pattern=':')[[1]]
+  solo_summary(solo_res)
+  print("solo result found")
 }
 
 assignment <- list.files(".", pattern = "_assignment.csv", full.names = TRUE)
@@ -245,3 +270,7 @@ write.csv(classification_all, "classification_all.csv", row.names=FALSE)
 # a = substring(a,1, nchar(a)-1)
 # multiseq_res <- str_split(a, pattern=';')[[1]]
 # multiseq_summary(multiseq_res)
+
+#a = "/Users/xichenwu/hash_demulti/hash_out/solo/solo_1"
+#solo_res <- str_split(a, pattern=';')[[1]]
+#solo_summary(solo_res)

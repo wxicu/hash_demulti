@@ -39,12 +39,13 @@ if __name__ == '__main__':
     print("--------------------Finished demultiplexing-------------------------------")
 
     print("------------------- Following Files are saved ----------------------------")
-    print(args.assignmentOutHashSolo + ".csv")
+    print(args.assignmentOutHashSolo + "_res.csv")
     print(args.plotOutHashSolo + ".jpg")
     print("params.csv")
-    cell_hashing_data.obs.to_csv(args.outputdir + "/" + args.assignmentOutHashSolo + ".csv")
+    cell_hashing_data.obs.to_csv(args.outputdir + "/" + args.assignmentOutHashSolo + "_res.csv")
     hashsolo.plot_qc_checks_cell_hashing(cell_hashing_data)
     plt.savefig(args.outputdir + "/" + args.plotOutHashSolo + ".jpg", dpi=400)
     param_df.to_csv(args.outputdir + "/params.csv", index=False)
+
 
 

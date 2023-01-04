@@ -6,8 +6,8 @@ import argparse
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='Parser for DemuxEM - Demultiplexing')
-parser.add_argument('--rna_matrix_dir', help= 'cellranger output folder which contains RNA count matrix in mtx format.')
-parser.add_argument('--hto_matrix_dir', help= 'cellranger output folder which contains HTO (antibody tag) count matrix in mtx format.')
+parser.add_argument('--rna_matrix_dir', help= 'cellranger output folder which contains raw RNA count matrix in mtx format.')
+parser.add_argument('--hto_matrix_dir', help= 'cellranger output folder which contains raw HTO (antibody tag) count matrix in mtx format.')
 parser.add_argument('--randomState', help='Random seed set for reproducing results.', type=int, default=0)
 parser.add_argument('--min_signal', help='Any cell/nucleus with less than min_signal hashtags from the signal will be marked as unknown.', type=float, default=10.0)
 parser.add_argument('--min_num_genes', help='We only demultiplex cells/nuclei with at least <number> of expressed genes.', type=int, default=100)
@@ -27,12 +27,16 @@ param_df = pd.DataFrame(param_list, columns=['Argument', 'Value'])
 
 if __name__ == '__main__':
     output_name = args.outputdir + "/" + args.objectOutDemuxem
+    # load input rna data
     data = pg.read_input(args.rna_matrix_dir, modality="rna")
     data.subset_data(modality_subset=['rna'])
-    data.concat_data()
+    data.concat_data() # in case of multi-organism mixing data
+    # load input hashing data
     data.update(pg.read_input(args.hto_matrix_dir, modality="hashing"))
+    # Extract rna and hashing data
     rna_data = data.get_data(modality="rna")
     hashing_data = data.get_data(modality="hashing")
+    # Filter the RNA matrix
     rna_data.obs["n_genes"] = rna_data.X.getnnz(axis=1)
     rna_data.obs["n_counts"] = rna_data.X.sum(axis=1).A1
     obs_index = np.logical_and.reduce(
@@ -42,9 +46,12 @@ if __name__ == '__main__':
         )
     )
     rna_data._inplace_subset_obs(obs_index)
+    # run demuxEM
     demuxEM.estimate_background_probs(hashing_data, random_state=args.randomState)
     demuxEM.demultiplex(rna_data, hashing_data, min_signal=args.min_signal, alpha=args.alpha, alpha_noise=args.alpha_noise, tol=args.tol, n_threads=args.n_threads)
+    # annotate raw matrix with demuxEM results
     demux_results = demuxEM.attach_demux_results(args.rna_matrix_dir, rna_data)
+    # generate plots
     demuxEM.plot_hto_hist(hashing_data, "hto_type", output_name + ".ambient_hashtag.hist.pdf", alpha=1.0)
     demuxEM.plot_bar(hashing_data.uns["background_probs"], hashing_data.var_names, "Sample ID",
          "Background probability", output_name + ".background_probabilities.bar.pdf",)
@@ -67,7 +74,7 @@ if __name__ == '__main__':
                 ),
                 title="{gene_name}: a gender-specific gene".format(gene_name=gene_name),
             )
-    
+    # output results
     pg.write_output(demux_results, output_name + "_demux.zarr.zip")
     pg.write_output(data, output_name + ".out.demuxEM.zarr.zip")
     print("\nSummary statistics:")

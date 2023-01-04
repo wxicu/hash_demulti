@@ -43,7 +43,7 @@ if __name__ == '__main__':
                early_stopping_patience=args.early_stopping_patience,
                early_stopping_min_delta=args.early_stopping_min_delta)
     prediction = solo.predict(args.soft, include_simulated_doublets=args.include_simulated_doublets)
-    prediction.to_csv(args.outputdir + "/" + args.assignmentOutSolo + ".csv")
+    prediction.to_csv(args.outputdir + "/" + args.assignmentOutSolo + "_res.csv")
     param_df.to_csv(args.outputdir + "/params.csv", index=False)
 
 

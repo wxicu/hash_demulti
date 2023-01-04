@@ -18,7 +18,7 @@ process solo{
         each assignmentOutSolo
         
     output:
-        path "solo_${task.index}/${assignmentOutSolo}.csv"
+        path "solo_${task.index}"
         
     script:
 

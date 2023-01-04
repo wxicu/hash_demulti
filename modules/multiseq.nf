@@ -3,7 +3,7 @@ nextflow.enable.dsl=2
 
 process multi_seq{
     publishDir "$params.outdir/multiseq", mode:'copy'
-    
+    label 'seurat'
     input:
     each rdsObject
     each quantile

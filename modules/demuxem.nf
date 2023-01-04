@@ -5,7 +5,7 @@ process demuxem{
     publishDir "$params.outdir/demuxem", mode:'copy'
     input:
         each raw_rna_matrix_dir
-        each hto_matrix_dir
+        each raw_hto_matrix_dir
         each threads
         each alpha
         each alpha_noise
@@ -23,7 +23,7 @@ process demuxem{
         def generateGenderPlot = generate_gender_plot != 'None' ? " --generateGenderPlot ${generate_gender_plot}" : ''
         """
         mkdir demuxem_${task.index}
-        demuxem.py --rna_matrix_dir $raw_rna_matrix_dir --hto_matrix_dir $hto_matrix_dir --randomState $random_state --min_signal $min_signal --min_num_genes $min_num_genes --min_num_umis $min_num_umis --alpha $alpha --alpha_noise $alpha_noise --tol $tol --n_threads $threads $generateGenderPlot --objectOutDemuxem $objectOutDemuxem --outputdir demuxem_${task.index}
+        demuxem.py --rna_matrix_dir $raw_rna_matrix_dir --hto_matrix_dir $raw_hto_matrix_dir --randomState $random_state --min_signal $min_signal --min_num_genes $min_num_genes --min_num_umis $min_num_umis --alpha $alpha --alpha_noise $alpha_noise --tol $tol --n_threads $threads $generateGenderPlot --objectOutDemuxem $objectOutDemuxem --outputdir demuxem_${task.index}
         
         """
 
@@ -41,7 +41,7 @@ def split_input(input){
 workflow demuxem_hashing{
   main:
         raw_rna_matrix_dir = split_input(params.rna_matrix_demuxem)
-        hto_matrix_dir = split_input(params.hto_matrix_demuxem)
+        raw_hto_matrix_dir = split_input(params.hto_matrix_demuxem)
         threads = split_input(params.threads)
         alpha = split_input(params.alpha)
         alpha_noise = split_input(params.alpha_noise)
@@ -53,7 +53,7 @@ workflow demuxem_hashing{
         generate_gender_plot = split_input(params.generate_gender_plot)
         objectOutDemuxem = split_input(params.objectOutDemuxem)
 
-        demuxem(raw_rna_matrix_dir, hto_matrix_dir, threads, alpha, alpha_noise, tol, min_num_genes, min_num_umis, min_signal, random_state, generate_gender_plot, objectOutDemuxem)
+        demuxem(raw_rna_matrix_dir, raw_hto_matrix_dir, threads, alpha, alpha_noise, tol, min_num_genes, min_num_umis, min_signal, random_state, generate_gender_plot, objectOutDemuxem)
   
   emit:
         demuxem.out.collect()

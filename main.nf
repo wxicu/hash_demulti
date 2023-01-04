@@ -16,6 +16,7 @@ process summary{
         val htodemux_result
         val multiseq_result
         val hashedDrops_result
+        val solo_result
     
     output:
         path '*.csv'
@@ -26,6 +27,7 @@ process summary{
         def hashsolo_files = ""
         def multiseq_files = ""
         def hashedDrops_files = ""
+        def solo_files = ""
         
         if (demuxem_result != "no_result"){
             demuxem_files = "--demuxem "
@@ -57,9 +59,15 @@ process summary{
                 hashedDrops_files = hashedDrops_files + r + ":"
             }
         }
+        if (solo_result != "no_result"){
+            solo_files = "--solo "
+            for(r : solo_result) {
+                solo_files = solo_files + r + ":"
+            }
+        }
         
         """
-        summary.R $demuxem_files $htodemux_files $multiseq_files $hashedDrops_files $hashsolo_files
+        summary.R $demuxem_files $htodemux_files $multiseq_files $hashedDrops_files $hashsolo_files $solo_files
         """
 }
 
@@ -122,6 +130,6 @@ workflow{
         solo_out = channel.value("no_result")
     }
     
-    summary(demuxem_out, hashsolo_out, htodemux_out, multiseq_out, hashedDrops_out)
+    summary(demuxem_out, hashsolo_out, htodemux_out, multiseq_out, hashedDrops_out, solo_out)
 
 }

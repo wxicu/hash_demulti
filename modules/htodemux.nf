@@ -3,6 +3,7 @@ nextflow.enable.dsl=2
 
 process htodemux{
     publishDir "$params.outdir/htodemux", mode: 'copy'
+    label 'seurat'
     input:
         each seurat_object
         each assay

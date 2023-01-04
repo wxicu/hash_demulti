@@ -36,8 +36,6 @@ parser$add_argument("--outputdir", help='Output directory')
 args <- parser$parse_args()
 
 hto <- Read10X(data.dir = args$raw_hto_matrix_dir)
-#arguments = paste0('lower:', args$lower, ", ", typeof(args$lower),", niters: ", typeof(args$niters), ", ", args$niters)
-#cat(arguments, file = "hashedDrops_out/arguments.txt")
 
 emptyDrops_out <- emptyDrops(hto, lower = args$lower, niters = args$niters,  
                              test.ambient = args$testAmbient, ignore = args$ignore,
@@ -55,12 +53,12 @@ saveRDS(emptyDrops_out, file=paste0(args$outputdir, "/", args$objectOutEmptyDrop
 
 print("------------------- filtering empty droplets ----------------------------")
 is.cell <- emptyDrops_out$FDR <= args$isCellFDR
+colors <- ifelse(is.cell, "red", "black")
+png(paste0(args$outputdir, "/", "plot_emptyDrops.png"))
+plot(emptyDrops_out$Total, -emptyDrops_out$LogProb, col=colors, xlab="Total UMI count", ylab="-Log Probability")
+dev.off()
 
-hashedDrops_out <- hashedDrops(hto[,which(is.cell)], min.prop = args$minProp, ambient = args$ambient, 
-                                pseudo.count = args$pseudoCount, constant.ambient = args$constantAmbient,
-                                doublet.nmads = args$doubletNmads, doublet.min = args$doubletMin,
-                                doublet.mixture = args$doubletMixture, confident.nmads = args$confidentNmads,
-                                confident.min = args$confidenMin, combinations = args$combinations)
+hashedDrops_out <- hashedDrops(hto[,which(is.cell)], min.prop = args$minProp, ambient = args$ambient, pseudo.count = args$pseudoCount, constant.ambient = args$constantAmbient, doublet.nmads = args$doubletNmads, doublet.min = args$doubletMin, doublet.mixture = args$doubletMixture, confident.nmads = args$confidentNmads, confident.min = args$confidenMin, combinations = args$combinations)
 
 print("------------------- hashedDrops finished ---------------------------------")
 
@@ -100,11 +98,11 @@ params <- data.frame(Argument, Value)
 
 print("-------- Following Files are saved in folder hashedDrops_out ------------")
 print(paste0(args$objectOutHashedDrops, ".rds"))
-print(paste0(args$assignmentOutHashedDrops, ".csv"))
+print(paste0(args$assignmentOutHashedDrops, "_res.csv"))
 print(paste0(args$objectOutHashedDrops, "_LogFC.png"))
 print("params.csv")
 write.csv(params, paste0(args$outputdir, "/params.csv"))
-write.csv(hashedDrops_out, paste0(args$outputdir, "/", args$assignmentOutHashedDrops, ".csv"))
+write.csv(hashedDrops_out, paste0(args$outputdir, "/", args$assignmentOutHashedDrops, "_res.csv"))
 saveRDS(hashedDrops_out, file=paste0(args$outputdir, "/", args$objectOutHashedDrops, ".rds"))
 
 colors <- ifelse(hashedDrops_out$Confident, "black", ifelse(hashedDrops_out$Doublet, "red", "grey"))
@@ -113,16 +111,3 @@ plot(hashedDrops_out$LogFC, hashedDrops_out$LogFC2, col=colors,
                 xlab="Log-fold change between best and second HTO",
                 ylab="Log-fold change between second HTO and ambient")
 dev.off()
-# Doublets show up in the top-left, singlets in the bottom right
-# Most cells should be singlets with low second log-fold changes.
-#if(args$plotLog){
- #   plot2 <- hist(hashed$LogFC2, breaks=50)
- #   png("histo_hashed.png")
- #   print(plot2)
-#}
-# Identify confident singlets or doublets at the given threshold.
-#summary(hashed$Confident)
-#summary(hashed$Doublet)
-
-# Checking against the known truth, in this case
-# 'Best' contains the putative sample o
